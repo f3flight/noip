@@ -27,10 +27,9 @@ Config parameter <cred-file> should specify a path to a curl netrc file.
     See 'man curl' for details.
 Config parameter [ip_command] is optional. It specifies a command
     passed to 'bash -c [ip_command] 2>&1' to determine current
-    public IP. Put in quotes if spaces are present. If not provided,
-    default is 'curl -s http://myexternalip.com/raw'. Useful if you don't want to
-    rely on http://myexternalip.com/raw to determine your public IP and have a
-    different way to determine.
+    public IP. If not provided, default is 'curl -s http://myexternalip.com/raw'.
+    Useful if you don't want to rely on http://myexternalip.com/raw to determine
+    your public IP when you have a different way to determine.
     Example: "ip -f inet a show br-extenral | grep -Po 'inet \K[\d.]+'"
 Default check-interval is 60.
 
