@@ -1,0 +1,8 @@
+[Unit]
+Description=Update dynamic DNS managed by no-ip.com
+
+[Service]
+ExecStart=/usr/sbin/noip
+
+[Install]
+WantedBy=multi-user.target

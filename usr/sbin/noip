@@ -1,0 +1,99 @@
+#!/bin/bash
+
+function fail()
+{
+    echo "ERROR: $1" 1>&2
+    exit 1
+}
+
+function warn()
+{
+    echo "WARNING: $1" 1>&2
+}
+
+function info()
+{       
+    echo "INFO: $1"
+}
+
+CONFIG="/etc/noip/noip.conf"
+PUBLIC_IP_URL="http://myexternalip.com/raw"
+NOIP_UPDATE_HOST="dynupdate.no-ip.com"
+NOIP_UPDATE_URL="https://$NOIP_UPDATE_HOST/nic/update"
+DEFAULT_IP_COMMAND="curl -s $PUBLIC_IP_URL"
+CHECK_INTERVAL=60
+
+if [ "$1" == "-h" ] || [ "$1" == "--help" ]
+then
+    echo "USAGE: noip [check-interval]"
+    echo "CONFIG FILE: $CONFIG"
+    echo "CONFIG FILE SYNTAX:"
+    echo "    <hostname> <cred-file> [ip_command]"
+    echo "    Tab-separated. Can contain multiple lines."
+    echo "Config parameter <cred-file> should specify a path to a curl netrc file."
+    echo "    Syntax is:"
+    echo "        machine $NOIP_UPDATE_HOST login <login> password <password>"
+    echo "    See 'man curl' for details."
+    echo "Config parameter [ip_command] is optional. It specifies a command"
+    echo "    passed to 'bash -c [ip_command] 2>&1' to determine current"
+    echo "    public IP. Put in quotes if spaces are present. If not provided,"
+    echo "    default is 'curl -s $PUBLIC_IP_URL'. Useful if you don't want to"
+    echo "    rely on $PUBLIC_IP_URL to determine your public IP and have a"
+    echo "    different way to determine."
+    echo "    Example: \"ip -f inet a show br-extenral | grep -Po 'inet \K[\d.]+'\""
+    echo "Default check-interval is $CHECK_INTERVAL."
+    echo ""
+    echo "This program reads data from $CONFIG and updates relevant DNS records managed by no-ip.com."
+    echo "Current IP address is re-checked using [ip_command] every [check-interval] seconds, upon change the DNS records are updated."
+    echo "The URL $NOIP_UPDATE_URL is used to update DNS records."
+    exit 0
+fi
+
+
+if [ ! -r "$CONFIG" ]
+then
+    fail "Cannot read config file!"
+fi
+
+declare -A IP
+while true
+do
+    LINE_NUM=0
+    while read line
+    do
+        LINE_NUM=$(($LINE_NUM+1))
+	if [ "${line::1}" == "#" ]
+        then
+            continue
+        fi
+        HOST=`echo "$line" | awk -F'\t' '{print $1}'`
+        NETRC=`echo "$line" | awk -F'\t' '{print $2}'`
+        IP_COMMAND=`echo "$line" | awk -F'\t' '{print $3}'`
+	if [ -z "$IP_COMMAND" ]
+        then
+           IP_COMMAND=$DEFAULT_IP_COMMAND 
+        fi
+        if [ -z "$HOST" ] || [ -z "$NETRC" ]
+        then
+            warn "Config line $LINE_NUM is invalid, skipping..."
+    	    continue
+	fi
+        NEW_IP=`echo "$IP_COMMAND" | bash -s 2>&1`
+        if [ "$?" -ne "0" ] || [[ ! "$NEW_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
+        then
+            warn "Could not determine current IP! Got: '$NEW_IP'. skipping..."
+	    continue
+        fi
+	if [ ! "$NEW_IP" == "${IP[$HOST]}" ]
+        then
+	    if [ -n "${IP[$HOST]}" ]
+            then
+                info "IP change detected for hostname $HOST, new address: $NEW_IP. Updating DNS record..."
+            fi
+	    RESULT=$(curl -s --netrc-file "$NETRC" "$NOIP_UPDATE_URL?hostname=$HOST&myip=$NEW_IP" 2>&1)
+            info "login $LOGIN, host $HOST update IP to $NEW_IP: $RESULT"
+	    IP[$HOST]="$NEW_IP"
+        fi
+    done < "$CONFIG"
+    sleep $CHECK_INTERVAL
+done
