@@ -22,6 +22,7 @@ NOIP_UPDATE_HOST="dynupdate.no-ip.com"
 NOIP_UPDATE_URL="https://$NOIP_UPDATE_HOST/nic/update"
 DEFAULT_IP_COMMAND="curl -s $PUBLIC_IP_URL"
 CHECK_INTERVAL=60
+RENEW_INTERVAL=604800 # 7 days
 
 if [ "$1" == "-h" ] || [ "$1" == "--help" ]
 then
@@ -60,38 +61,45 @@ do
     LINE_NUM=0
     while read line
     do
+        TIME_NOW=`date +%s`
         LINE_NUM=$(($LINE_NUM+1))
-	if [ "${line::1}" == "#" ]
+        if [ "${line::1}" == "#" ]
         then
             continue
         fi
         HOST=`echo "$line" | awk -F'\t' '{print $1}'`
         NETRC=`echo "$line" | awk -F'\t' '{print $2}'`
         IP_COMMAND=`echo "$line" | awk -F'\t' '{print $3}'`
-	if [ -z "$IP_COMMAND" ]
+        if [ -z "$IP_COMMAND" ]
         then
            IP_COMMAND=$DEFAULT_IP_COMMAND 
         fi
         if [ -z "$HOST" ] || [ -z "$NETRC" ]
         then
             warn "Config line $LINE_NUM is invalid, skipping..."
-    	    continue
-	fi
+            continue
+        fi
         NEW_IP=`echo "$IP_COMMAND" | bash -s 2>&1`
         if [ "$?" -ne "0" ] || [[ ! "$NEW_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
         then
             warn "Could not determine current IP! Got: '$NEW_IP'. skipping..."
-	    continue
+        continue
         fi
-	if [ ! "$NEW_IP" == "${IP[$HOST]}" ]
+        if [ -n "$TIME_UPDATE" ] && [ "$((TIME_NOW-TIME_UPDATE))" -ge "$UPDATE_INTERVAL" ]
         then
-	    if [ -n "${IP[$HOST]}" ]
+            info "$UPDATE_INTERVAL seconds passed since last update, forcing renewal"
+            IP[$HOST]=''
+        fi
+        if [ ! "$NEW_IP" == "${IP[$HOST]}" ]
+        then
+            if [ -n "${IP[$HOST]}" ]
             then
                 info "IP change detected for hostname $HOST, new address: $NEW_IP. Updating DNS record..."
             fi
-	    RESULT=$(curl -s --netrc-file "$NETRC" "$NOIP_UPDATE_URL?hostname=$HOST&myip=$NEW_IP" 2>&1)
+            RESULT=$(curl -s --netrc-file "$NETRC" "$NOIP_UPDATE_URL?hostname=$HOST&myip=$NEW_IP" 2>&1)
             info "login $LOGIN, host $HOST update IP to $NEW_IP: $RESULT"
-	    IP[$HOST]="$NEW_IP"
+            IP[$HOST]="$NEW_IP"
+            TIME_UPDATE=`date +%s`
         fi
     done < "$CONFIG"
     sleep $CHECK_INTERVAL
