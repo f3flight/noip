@@ -85,7 +85,7 @@ do
             warn "Could not determine current IP! Got: '$NEW_IP'. skipping..."
         continue
         fi
-        if [ -n "$TIME_UPDATE" ] && [ "$((TIME_NOW-TIME_UPDATE))" -ge "$UPDATE_INTERVAL" ]
+        if [ -n "$TIME_UPDATE" ] && [ "$((TIME_NOW-TIME_UPDATE))" -ge "$RENEW_INTERVAL" ]
         then
             info "$UPDATE_INTERVAL seconds passed since last update, forcing renewal"
             IP[$HOST]=''
