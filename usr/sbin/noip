@@ -17,6 +17,7 @@ function info()
 }
 
 CONFIG="/etc/noip/noip.conf"
+INTERNET_CHECK_COMMAND="ping -c3 8.8.8.8"
 PUBLIC_IP_URL="http://myexternalip.com/raw"
 NOIP_UPDATE_HOST="dynupdate.no-ip.com"
 NOIP_UPDATE_URL="https://$NOIP_UPDATE_HOST/nic/update"
@@ -82,12 +83,14 @@ do
         NEW_IP=`echo "$IP_COMMAND" | bash -s 2>&1`
         if [ "$?" -ne "0" ] || [[ ! "$NEW_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
         then
-            warn "Could not determine current IP! Got: '$NEW_IP'. skipping..."
+            INTERNET_CHECK_RESULT='failed'
+            $INTERNET_CHECK_COMMAND && INTERNET_CHECK_RESULT='passed'
+            warn "Could not determine current IP! Got: '$NEW_IP'. Internet connectivity check $INTERNET_CHECK_RESULT."
         continue
         fi
-        if [ -n "$TIME_UPDATE" ] && [ "$((TIME_NOW-TIME_UPDATE))" -ge "$UPDATE_INTERVAL" ]
+        if [ -n "$TIME_UPDATE" ] && [ "$((TIME_NOW-TIME_UPDATE))" -ge "$RENEW_INTERVAL" ]
         then
-            info "$UPDATE_INTERVAL seconds passed since last update, forcing renewal"
+            info "$RENEW_INTERVAL seconds passed since last update, forcing renewal"
             IP[$HOST]=''
         fi
         if [ ! "$NEW_IP" == "${IP[$HOST]}" ]
