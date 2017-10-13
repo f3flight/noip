@@ -2,7 +2,7 @@
 Description=Update dynamic DNS managed by no-ip.com
 
 [Service]
-ExecStart=/usr/local/sbin/noip
+ExecStart=/usr/sbin/noip
 
 [Install]
 WantedBy=multi-user.target
