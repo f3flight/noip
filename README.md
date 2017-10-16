@@ -2,6 +2,7 @@
 noip.com DNS updater service for Linux. Can update IP **AND** confirm expiring hosts. Works over HTTPS.
 
 # How to use:
+0. Requires: jq (Shell JSON parser), curl
 1. copy files to expected destinations in /etc and /usr
 2. `noip -h` - read help
 3. edit (rename if you want) /usr/noip/mynoipcreds.netrc
