@@ -96,7 +96,7 @@ function removeUnmodifiedCfgFiles() {
         filename=`basename $filepath`
         cmp $filepath ${folder[cfg]}/$filename > /dev/null 2>&1
         bothEquals=$?
-        [[ -f ${folder[cfg]}/$filename && $bothEquals -ne 0 ]] && /
+        [[ -f ${folder[cfg]}/$filename && $bothEquals -eq 0 ]] && \
             rm ${folder[cfg]}/$filename > /dev/null 2>&1
     done
 
