@@ -97,9 +97,9 @@ function removeUnmodifiedCfgFiles() {
 
 function uninstall() {
     rootCheck
-    rm ${folder[bin]}/noip
+    rm ${folder[bin]}/noip > /dev/null 2>&1
     removeUnmodifiedCfgFiles
-    rm ${folder[systemd]}/noip.service
+    rm ${folder[systemd]}/noip.service > /dev/null 2>&1
     info "Done!"
 }
 
