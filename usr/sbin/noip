@@ -67,6 +67,7 @@ declare -A TIME_EXPIRY_CHECK
 while true
 do
     LINE_NUM=0
+    CONFIG_HAS_DATA=0
     while read -r line
     do
         TIME_NOW=$(date +%s)
@@ -87,6 +88,7 @@ do
             warn "Config line $LINE_NUM is invalid, skipping..."
             continue
         fi
+        CONFIG_HAS_DATA=1
 	NEW_IP=$(echo "$IP_COMMAND" | bash -s 2>&1)
         if [ $? -ne 0 ] || [[ ! "$NEW_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
         then
@@ -114,43 +116,48 @@ do
             #TIME_UPDATE=`date +%s` # this logic does not work, needs rework
         fi
     done < "$CONFIG"
-    NETRC_FILES="$(awk -F'\t' '{print $2}' $CONFIG | sort -u)"
-    while read -r NETRC_FILE
-    do
-        if [ -z ${TIME_EXPIRY_CHECK[$NETRC_FILE]} ] || [ "$((TIME_NOW-TIME_EXPIRY_CHECK[$NETRC_FILE]))" -ge "$EXPIRY_CHECK_INTERVAL" ]
-        then
-            USER=$(awk '{print $4}' $NETRC_FILE)
-            info "Expiry check: it's time to check noip hosts owned by user $USER for expiry..."
-            PSWD=$(awk '{print $6}' $NETRC_FILE)
-            TMP_COOKIE_FILE=$(mktemp /tmp/noip.XXXXXX)
-            LOGIN_PAGE="$(curl -c $TMP_COOKIE_FILE $NOIP_LOGIN_PAGE 2>/dev/null)"
-            LOGIN_TOKEN=$(echo "$LOGIN_PAGE" | grep token | grep -o 'value=".*"' | cut -d\" -f2 | head -n 1)
-            LOGIN_ATTEMPT="$(curl -L -b $TMP_COOKIE_FILE -c $TMP_COOKIE_FILE -d "username=${USER}&password=${PSWD}&submit_login_page=1&_token=${LOGIN_TOKEN}&Login=" $NOIP_LOGIN_PAGE 2>/dev/null)"
-	    CSRF_TOKEN=$(echo "$LOGIN_ATTEMPT" | grep meta | grep token | grep -o 'content=".*"' | cut -d\" -f2)
-	    HOSTS_JSON="$(curl -b $TMP_COOKIE_FILE -c $TMP_COOKIE_FILE -H "X-CSRF-TOKEN: $CSRF_TOKEN" -H "X-Requested-With: XMLHttpRequest" $NOIP_API_HOSTS_URL 2>/dev/null)"
-	    EXPIRING_HOSTS="$(echo "$HOSTS_JSON" | jq -r '.hosts[] | select(.is_expiring_soon or .is_expired) | [.id, .hostname] | @tsv')"
-            HOST_COUNT=$(echo -n "$EXPIRING_HOSTS" | grep -c '^')
-            info "Expiry check: $HOST_COUNT expiring soon / expired hosts found."
-	    while read -r line
-            do
-                HOST_ID=$(echo "$line" | awk -F'\t' '{print $1}')
-		HOST_HOSTNAME=$(echo "$line" | awk -F'\t' '{print $2}')
-		if [ -n "$HOST_ID" ]
-		then
-                    info "Expiry check: host $HOST_HOSTNAME is expiring soon, confirming via API..."
-		    RESULT_JSON="$(curl -b $TMP_COOKIE_FILE -c $TMP_COOKIE_FILE -H "X-CSRF-TOKEN: $CSRF_TOKEN" -H "X-Requested-With: XMLHttpRequest" ${NOIP_API_HOSTS_URL}${HOST_ID}/touch 2>/dev/null)"
-		    if [ $? -eq 0 ] && [ -z "$(echo "$RESULT_JSON" | jq ".hosts[] | select(.id==$HOST_ID) | select(.is_expiring_soon or .is_expired)")" ]
+    if [ $CONFIG_HAS_DATA -eq 0 ]
+    then
+        warn "Config file $CONFIG has no usable data, will do nothing this interval..."
+    else
+        NETRC_FILES="$(grep -v '^#' $CONFIG | awk -F'\t' '{print $2}' | sort -u)"
+        while read -r NETRC_FILE
+        do
+            if [ -z ${TIME_EXPIRY_CHECK[$NETRC_FILE]} ] || [ "$((TIME_NOW-TIME_EXPIRY_CHECK[$NETRC_FILE]))" -ge "$EXPIRY_CHECK_INTERVAL" ]
+            then
+                USER=$(awk '{print $4}' $NETRC_FILE)
+                info "Expiry check: it's time to check noip hosts owned by user $USER for expiry..."
+                PSWD=$(awk '{print $6}' $NETRC_FILE)
+                TMP_COOKIE_FILE=$(mktemp /tmp/noip.XXXXXX)
+                LOGIN_PAGE="$(curl -c $TMP_COOKIE_FILE $NOIP_LOGIN_PAGE 2>/dev/null)"
+                LOGIN_TOKEN=$(echo "$LOGIN_PAGE" | grep token | grep -o 'value=".*"' | cut -d\" -f2 | head -n 1)
+                LOGIN_ATTEMPT="$(curl -L -b $TMP_COOKIE_FILE -c $TMP_COOKIE_FILE -d "username=${USER}&password=${PSWD}&submit_login_page=1&_token=${LOGIN_TOKEN}&Login=" $NOIP_LOGIN_PAGE 2>/dev/null)"
+                CSRF_TOKEN=$(echo "$LOGIN_ATTEMPT" | grep meta | grep token | grep -o 'content=".*"' | cut -d\" -f2)
+                HOSTS_JSON="$(curl -b $TMP_COOKIE_FILE -c $TMP_COOKIE_FILE -H "X-CSRF-TOKEN: $CSRF_TOKEN" -H "X-Requested-With: XMLHttpRequest" $NOIP_API_HOSTS_URL 2>/dev/null)"
+                EXPIRING_HOSTS="$(echo "$HOSTS_JSON" | jq -r '.hosts[] | select(.is_expiring_soon or .is_expired) | [.id, .hostname] | @tsv')"
+                HOST_COUNT=$(echo -n "$EXPIRING_HOSTS" | grep -c '^')
+                info "Expiry check: $HOST_COUNT expiring soon / expired hosts found."
+                while read -r line
+                do
+                    HOST_ID=$(echo "$line" | awk -F'\t' '{print $1}')
+                    HOST_HOSTNAME=$(echo "$line" | awk -F'\t' '{print $2}')
+                    if [ -n "$HOST_ID" ]
                     then
-                        info "Expiry check: host $HOST_HOSTNAME confirmed successfully!"
-                    else
-                        warn "Expiry check: host $HOST_HOSTNAME could not be auto-confirmed, something went wrong. Request output: $RESULT_JSON" 
-                    fi
-		fi
-		break
-            done <<< "$EXPIRING_HOSTS"
-            TIME_EXPIRY_CHECK[$NETRC_FILE]=$(date +%s)
-	    rm $TMP_COOKIE_FILE
-        fi
-    done <<< "$NETRC_FILES"
+                        info "Expiry check: host $HOST_HOSTNAME is expiring soon, confirming via API..."
+                        RESULT_JSON="$(curl -b $TMP_COOKIE_FILE -c $TMP_COOKIE_FILE -H "X-CSRF-TOKEN: $CSRF_TOKEN" -H "X-Requested-With: XMLHttpRequest" ${NOIP_API_HOSTS_URL}${HOST_ID}/touch 2>/dev/null)"
+                        if [ $? -eq 0 ] && [ -z "$(echo "$RESULT_JSON" | jq ".hosts[] | select(.id==$HOST_ID) | select(.is_expiring_soon or .is_expired)")" ]
+                        then
+                            info "Expiry check: host $HOST_HOSTNAME confirmed successfully!"
+                        else
+                            warn "Expiry check: host $HOST_HOSTNAME could not be auto-confirmed, something went wrong. Request output: $RESULT_JSON" 
+                        fi
+              fi
+              break
+                done <<< "$EXPIRING_HOSTS"
+                TIME_EXPIRY_CHECK[$NETRC_FILE]=$(date +%s)
+                rm $TMP_COOKIE_FILE
+            fi
+        done <<< "$NETRC_FILES"
+    fi
     sleep $CHECK_INTERVAL
 done
