@@ -1,5 +1,5 @@
 # noip
-no-ip.com DNS updater service for Linux. Yet another implementation, I know I know. But this one is more secure, not cleartext passwords in command line or in http (https is used).
+noip.com DNS updater service for Linux. Can update IP **AND** confirm expiring hosts. Works over HTTPS.
 
 # How to use:
 1. copy files to expected destinations in /etc and /usr
@@ -33,7 +33,10 @@ Config parameter [ip_command] is optional. It specifies a command
     Example: "ip -f inet a show br-extenral | grep -Po 'inet \K[\d.]+'"
 Default check-interval is 60.
 
-This program reads data from /etc/noip/noip.conf and updates relevant DNS records managed by no-ip.com.
+This program reads data from /etc/noip/noip.conf and updates relevant DNS records managed by noip.com.
+It also auto-confirms any expiring hosts via noip API.
 Current IP address is re-checked using [ip_command] every [check-interval] seconds, upon change the DNS records are updated.
 The URL https://dynupdate.no-ip.com/nic/update is used to update DNS records.
+Expiry check is performed per .netrc file, once every 7200 seconds.
+The URL https://my.noip.com/api/host/<host-id>/touch is used to auto-confirm expiring hosts.
 ```

@@ -47,9 +47,12 @@ then
     echo "    Example: \"ip -f inet a show br-extenral | grep -Po 'inet \K[\d.]+'\""
     echo "Default check-interval is $CHECK_INTERVAL."
     echo ""
-    echo "This program reads data from $CONFIG and updates relevant DNS records managed by no-ip.com."
+    echo "This program reads data from $CONFIG and updates relevant DNS records managed by noip.com."
+    echo "It also auto-confirms any expiring hosts via noip API."
     echo "Current IP address is re-checked using [ip_command] every [check-interval] seconds, upon change the DNS records are updated."
     echo "The URL $NOIP_UPDATE_URL is used to update DNS records."
+    echo "Expiry check is performed per .netrc file, once every $EXPIRY_CHECK_INTERVAL seconds."
+    echo "The URL https://my.noip.com/api/host/<host-id>/touch is used to auto-confirm expiring hosts."
     exit 0
 fi
 
