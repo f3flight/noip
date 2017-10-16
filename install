@@ -83,10 +83,22 @@ function postInstallInstructions() {
 END
 }
 
+function removeUnmodifiedCfgFiles() {
+    for filepath in `ls etc/noip/*`; do
+        filename=`basename $filepath`
+        cmp $filepath ${folder[cfg]}/$filename > /dev/null 2>&1
+        bothEquals=$?
+        [[ -f ${folder[cfg]}/$filename && $bothEquals -ne 0 ]] && /
+            rm ${folder[cfg]}/$filename > /dev/null 2>&1
+    done
+
+    rmdir ${folder[cfg]} > /dev/null 2>&1
+}
+
 function uninstall() {
     rootCheck
     rm ${folder[bin]}/noip
-    rm -rf ${folder[cfg]}
+    removeUnmodifiedCfgFiles
     rm ${folder[systemd]}/noip.service
     info "Done!"
 }
