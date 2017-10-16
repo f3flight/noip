@@ -55,9 +55,17 @@ function secureConfig() {
   chmod -R 600 ${folder[cfg]}/*.netrc
 }
 
+function copyCfgFiles() {
+    for filepath in `ls etc/noip/*`; do
+        destFile=${folder[cfg]}/`basename $filepath`
+        [[  ! -e  $destFile ]] && \
+            cp $filepath $destFile
+    done
+}
+
 function copyFiles() {
   cp usr/sbin/* ${folder[bin]}
-  cp -R etc/noip/* ${folder[cfg]}
+  copyCfgFiles
   cp -R etc/systemd/system/* ${folder[systemd]}
 }
 
