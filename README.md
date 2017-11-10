@@ -34,6 +34,6 @@ This program reads data from /etc/noip/noip.conf and updates relevant DNS record
 It also auto-confirms any expiring hosts via noip API.
 Current IP address is re-checked using [ip_command] every [check-interval] seconds, upon change the DNS records are updated.
 The URL https://dynupdate.no-ip.com/nic/update is used to update DNS records.
-Expiry check is performed per .netrc file, once every 7200 seconds.
+Expiry check is performed per .netrc file, once every 172800 seconds.
 The URL https://my.noip.com/api/host/<host-id>/touch is used to auto-confirm expiring hosts.
 ```
