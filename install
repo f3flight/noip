@@ -105,25 +105,28 @@ function removeUnmodifiedCfgFiles() {
 
 function uninstall() {
     rootCheck
+    systemctl stop noip
+    systemctl disable noip
     rm ${folder[bin]}/noip > /dev/null 2>&1
     removeUnmodifiedCfgFiles
     rm ${folder[systemd]}/noip.service > /dev/null 2>&1
+    systemctl daemon-reload
     info "Done!"
 }
 
 function parseArgs() {
   while [ $# -gt 0 ]; do
-  	case "$1" in
-  		--uninstall|-u)
-  				localCommand=uninstall
-  				;;
-      --install|-i)
-          localCommand=install
-          ;;
-  		*)
-          usage
-          exit 1
-  	    	;;
+      case "$1" in
+          --uninstall|-u)
+              localCommand=uninstall
+              ;;
+          --install|-i)
+              localCommand=install
+              ;;
+          *)
+              usage
+              exit 1
+              ;;
       esac
       shift
   done
