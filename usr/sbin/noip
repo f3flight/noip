@@ -26,7 +26,7 @@ NOIP_API_HOSTS_URL="https://my.noip.com/api/host/"
 DEFAULT_IP_COMMAND="curl -s $PUBLIC_IP_URL"
 CHECK_INTERVAL=60
 #RENEW_INTERVAL=604800 # 7 days
-EXPIRY_CHECK_INTERVAL=7200 # 2 days
+EXPIRY_CHECK_INTERVAL=172800 # 2 days
 
 if [ "$1" == "-h" ] || [ "$1" == "--help" ]
 then
