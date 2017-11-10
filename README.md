@@ -3,16 +3,13 @@ noip.com DNS updater service for Linux. Can update IP **AND** confirm expiring h
 
 # How to use:
 0. Requires: jq (Shell JSON parser), curl
-1. copy files to expected destinations in /etc and /usr
-2. `noip -h` - read help
-3. edit (rename if you want) /usr/noip/mynoipcreds.netrc
-4. edit /etc/noip/noip.conf
-5. `sudo systemctl daemon-reload`
-6. `sudo systemctl start noip`
-7. `sudo systemctl status noip` - check log, if all good then proceed
-8. `sudo systemctl enable noip` - enable to start on boot
-9. **Don't forget to secure your creds:** `sudo chmod 600 /etc/noip/*.netrc`
-10. be happy!
+1. Install noip : `sudo ./install`
+2. edit /etc/noip/noip.conf
+3. `sudo systemctl daemon-reload`
+4. `sudo systemctl start noip`
+5. `sudo systemctl status noip` - check log, if all good then proceed
+6. `sudo systemctl enable noip` - enable to start on boot
+7. be happy!
 
 # Output of `noip -h`
 ```

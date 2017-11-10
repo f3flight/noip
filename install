@@ -1,0 +1,139 @@
+#!/bin/bash
+
+prg=`basename $0`
+localCommand=install
+declare -A folder=(
+  [bin]=/usr/sbin
+  [cfg]=/etc/noip
+  [systemd]=/etc/systemd/system
+)
+
+
+function info()
+{
+    echo "INFO: $1"
+}
+
+
+function fail()
+{
+    echo "ERROR: $1" 1>&2
+    exit 1
+}
+
+function usage() {
+    cat <<EOH
+
+usage:
+    ${prg} {[--install|-i|--uninstall|-u]}
+
+    --uninstall|-u : uninstall noip
+    --install|-i   : install noip
+
+EOH
+
+}
+
+function createFolders() {
+    for i in "${!folder[@]}"; do
+      mkdir -p ${folder[$i]}
+    done
+}
+
+function callerUserId() {
+  ## identify user in a bash script called by sudo
+  ## https://stackoverflow.com/questions/3522341/identify-user-in-a-bash-script-called-by-sudo/3522393
+
+  ## Login name of the user who invoked sudo
+  ## https://www.sudo.ws/man/sudo.man.html#SUDO_USER
+  local user=${SUDO_USER:-$(whoami)}
+  echo $user
+}
+
+function secureConfig() {
+  chown -R `callerUserId` ${folder[cfg]}
+  chmod -R 600 ${folder[cfg]}/*.netrc
+}
+
+function copyCfgFiles() {
+    for filepath in `ls etc/noip/*`; do
+        destFile=${folder[cfg]}/`basename $filepath`
+        [[  ! -e  $destFile ]] && \
+            cp $filepath $destFile
+    done
+}
+
+function copyFiles() {
+  cp usr/sbin/* ${folder[bin]}
+  copyCfgFiles
+  cp -R etc/systemd/system/* ${folder[systemd]}
+}
+
+function install() {
+  rootCheck
+  createFolders
+  copyFiles
+  secureConfig
+  postInstallInstructions
+  info "Done!"
+}
+
+function postInstallInstructions() {
+  cat <<END
+
+  DON'T FORGET to edit config file ${folder[cfg]}/noip.conf
+
+  Useful commands :
+    Start noip : sudo systemctl start noip
+    Check noip status and log : sudo systemctl status noip
+    Enable noip to start on boot : sudo systemctl enable noip
+
+END
+}
+
+function removeUnmodifiedCfgFiles() {
+    for filepath in `ls etc/noip/*`; do
+        filename=`basename $filepath`
+        cmp $filepath ${folder[cfg]}/$filename > /dev/null 2>&1
+        bothEquals=$?
+        [[ -f ${folder[cfg]}/$filename && $bothEquals -eq 0 ]] && \
+            rm ${folder[cfg]}/$filename > /dev/null 2>&1
+    done
+
+    rmdir ${folder[cfg]} > /dev/null 2>&1
+}
+
+function uninstall() {
+    rootCheck
+    rm ${folder[bin]}/noip > /dev/null 2>&1
+    removeUnmodifiedCfgFiles
+    rm ${folder[systemd]}/noip.service > /dev/null 2>&1
+    info "Done!"
+}
+
+function parseArgs() {
+  while [ $# -gt 0 ]; do
+  	case "$1" in
+  		--uninstall|-u)
+  				localCommand=uninstall
+  				;;
+      --install|-i)
+          localCommand=install
+          ;;
+  		*)
+          usage
+          exit 1
+  	    	;;
+      esac
+      shift
+  done
+}
+
+function rootCheck() {
+  if [ "$EUID" -ne 0 ];then
+    fail "Please run as root"
+  fi
+}
+
+parseArgs $*
+$localCommand
